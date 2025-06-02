@@ -5,13 +5,19 @@ import java.util.Arrays;
 
 public class Main {
     public static void main(String[] args) {
-        ArrayList<ActionTypes> endSequence = new ArrayList<>(Arrays.asList(
-                ActionTypes.PUNCH,
-                ActionTypes.LIGHT_HIT,
-                ActionTypes.LIGHT_HIT)
+
+        // TODO: Add DFG for target > 100
+        // TODO: Add multiprocessing
+        // TODO: Add ambiguous hit
+        // TODO: Make cache
+        // TODO: Fix memory overflow
+        ArrayList<Technique> rules = new ArrayList<>(Arrays.asList(
+                Technique.PUNCH, // Last action
+                Technique.HEAVY_HIT, // Second to last action
+                Technique.UPSET) // Thrid to last action
                 .reversed());
-        int points = 60;
-        ActionGraph graph = new ActionGraph(points, endSequence);
+        int points = 55; // Points goal
+        TechniqueGraph graph = new TechniqueGraph(points, rules);
 
         graph.getFullPlan();
 
