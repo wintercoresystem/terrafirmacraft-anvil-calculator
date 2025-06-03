@@ -12,7 +12,6 @@ import java.util.Queue;
 @Slf4j
 public class TechniqueGraph {
 
-
     @Data
     @NoArgsConstructor
     private class Node {
