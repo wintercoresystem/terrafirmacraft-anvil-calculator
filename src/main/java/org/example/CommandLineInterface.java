@@ -38,7 +38,7 @@ public class CommandLineInterface {
 
         TechniqueGraph graph = new TechniqueGraph(target, rules);
 
-        System.out.println("=== Graph done! ===");
         graph.getFullPlan();
+        System.out.println("\n=== Graph done! ===");
     }
 }

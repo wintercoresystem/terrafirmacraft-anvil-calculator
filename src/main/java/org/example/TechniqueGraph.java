@@ -5,6 +5,7 @@ import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.Queue;
 
@@ -75,7 +76,7 @@ public class TechniqueGraph {
         this.rootNode.initializeChildren();
     }
 
-    private Node solveGraph() {
+    private Node searchBFS() {
         Queue<Node> nodesQueue = new LinkedList<>(rootNode.getChildren());
 
         int depth = 0;
@@ -95,6 +96,31 @@ public class TechniqueGraph {
         return null;
     }
 
+
+    private Node searchDFS() {
+        Queue<Node> nodesQueue = new LinkedList<>(rootNode.getChildren());
+
+        int depth = 0;
+        while (depth < 100) {
+            nodesQueue = new LinkedList<>(nodesQueue.stream().sorted(Comparator.comparing(Node::getPoints).reversed()).toList());
+            Node currentNode = nodesQueue.poll();
+            int currentPoints = currentNode.getCurrentPoints();
+            if (currentPoints == 0) {
+//                log.debug("Returning node {} with final iteration: {}.", currentNode, depth);
+                return currentNode;
+            } else if ((currentPoints < 0 || currentPoints > 200)) continue;
+//            log.debug("Trying {} node", currentNode);
+
+            currentNode.initializeChildren();
+            nodesQueue.addAll(currentNode.getChildren());
+
+            depth = currentNode.getDepth();
+
+        }
+        log.warn("Graph is too deep!");
+        return null;
+    }
+
     private String compress(Technique technique, int count) {
         if (count > 1)
             return String.format("%s✕%d, ", technique, count);
@@ -103,7 +129,8 @@ public class TechniqueGraph {
     }
 
     public void getFullPlan() {
-        Node resultNode = this.solveGraph();
+//        Node resultNode = this.searchBFS();
+        Node resultNode = this.searchDFS();
         while (resultNode.getParent() != null) {
             this.fullPath.addFirst(resultNode.getTechnique());
             resultNode = resultNode.getParent();
