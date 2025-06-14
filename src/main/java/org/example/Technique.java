@@ -18,4 +18,11 @@ public enum Technique {
     private Technique(int points) {
         this.points = points;
     }
+
+    public static Technique fromString(String string) throws IllegalAccessException {
+        for (Technique technique : Technique.values()) {
+            if (string.charAt(0) == technique.name().charAt(0)) return technique;
+        }
+        throw new IllegalAccessException("No such technique: " + string);
+    }
 }

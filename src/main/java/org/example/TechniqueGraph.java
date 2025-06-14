@@ -4,14 +4,11 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedList;
-import java.util.Queue;
+import java.util.*;
 
 @Data
 @Slf4j
-public class TechniqueGraph {
+public class TechniqueGraph implements Comparable<TechniqueGraph> {
 
     @Data
     @NoArgsConstructor
@@ -56,10 +53,13 @@ public class TechniqueGraph {
     }
 
 
-    int targetPoints;
-    ArrayList<Technique> fullPath = new ArrayList<>();
-    ArrayList<Node> graph;
-    Node rootNode;
+    private int targetPoints;
+    private ArrayList<Technique> fullPath = new ArrayList<>();
+    private Node rootNode;
+    private int finalDepth;
+    private int uniqueTechniques;
+    private String pathConsecutive;
+
 
     public TechniqueGraph(int targetPoints, ArrayList<Technique> rules) {
         this.fullPath.addAll(rules);
@@ -67,35 +67,13 @@ public class TechniqueGraph {
                 .stream()
                 .map(Technique::getPoints)
                 .reduce(0, Integer::sum);
-        log.info("{}, points to calculate with ending rules {}. {} points actually.",
-                targetPoints, rules, this.targetPoints);
-        log.info("Making root node.");
+//        log.info("{}, points to calculate with ending rules {}. {} points actually.", targetPoints, rules, this.targetPoints);
+//        log.info("Making root node.");
         this.rootNode = new Node();
         this.rootNode.setCurrentPoints(this.targetPoints);
         this.rootNode.setDepth(1);
         this.rootNode.initializeChildren();
     }
-
-    private Node searchBFS() {
-        Queue<Node> nodesQueue = new LinkedList<>(rootNode.getChildren());
-
-        int depth = 0;
-        while (depth < 10) {
-            Node currentNode = nodesQueue.poll();
-//            log.debug("Trying {} node", currentNode);
-            if (currentNode.getCurrentPoints() == 0) {
-//                log.debug("Returning node {} with final iteration: {}.", currentNode, depth);
-                return currentNode;
-            }
-
-            currentNode.initializeChildren();
-            nodesQueue.addAll(currentNode.getChildren());
-            depth = currentNode.getDepth();
-        }
-        log.warn("Graph is too deep!");
-        return null;
-    }
-
 
     private Node searchDFS() {
         Queue<Node> nodesQueue = new LinkedList<>(rootNode.getChildren());
@@ -107,6 +85,7 @@ public class TechniqueGraph {
             int currentPoints = currentNode.getCurrentPoints();
             if (currentPoints == 0) {
 //                log.debug("Returning node {} with final iteration: {}.", currentNode, depth);
+                this.finalDepth = currentNode.getDepth();
                 return currentNode;
             } else if ((currentPoints < 0 || currentPoints > 200)) continue;
 //            log.debug("Trying {} node", currentNode);
@@ -129,8 +108,8 @@ public class TechniqueGraph {
     }
 
     public void getFullPlan() {
-//        Node resultNode = this.searchBFS();
         Node resultNode = this.searchDFS();
+
         while (resultNode.getParent() != null) {
             this.fullPath.addFirst(resultNode.getTechnique());
             resultNode = resultNode.getParent();
@@ -154,6 +133,17 @@ public class TechniqueGraph {
         stringBuilder.append(this.compress(fullPath.getLast(), consecutiveTechniqueAmount));
         stringBuilder.delete(stringBuilder.length() - 2, stringBuilder.length());
 
-        System.out.printf("Techniques (debug): %s;\nTechniques: %s;\nTotal actions: %d.", this.fullPath, stringBuilder, this.fullPath.size());
+        this.uniqueTechniques = new HashSet<>(this.fullPath).size();
+        this.pathConsecutive = stringBuilder.toString();
+//        log.debug("Graph solved. Amount of actions: {}; Unique techniques: {}; Path: {}; Path (full): {}.", this.fullPath.size(), this.uniqueTechniques, this.pathConsecutive, this.fullPath);
+    }
+
+    @Override
+    public int compareTo(TechniqueGraph otherGraph) {
+        int comparedDepth = Integer.compare(otherGraph.getFinalDepth(), this.finalDepth);
+        int uniqueTechniques = Integer.compare(otherGraph.getUniqueTechniques(), this.uniqueTechniques);
+        if (comparedDepth != 0)
+            return comparedDepth;
+        return uniqueTechniques;
     }
 }
