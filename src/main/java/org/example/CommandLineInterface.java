@@ -27,13 +27,17 @@ public class CommandLineInterface {
             if (trimmedString.equalsIgnoreCase("hit")) {
                 map.put(counter, new ArrayList<>(Arrays.asList(hits)));
             } else {
-                map.put(counter, new ArrayList<>(Collections.singleton(Technique.fromString(trimmedString))));
+                try {
+                    map.put(counter, new ArrayList<>(Collections.singleton(Technique.fromString(trimmedString))));
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalArgumentException("Invalid technique: " + trimmedString);
+                }
             }
             counter++;
         }
         ArrayList<ArrayList<Technique>> result = new ArrayList<>();
         result.add(new ArrayList<>());
-//        log.info("Map: {}", map);
+
         for (List<Technique> values : map.values()) {
             ArrayList<ArrayList<Technique>> temp = new ArrayList<>();
 
@@ -49,35 +53,92 @@ public class CommandLineInterface {
         return result;
     }
 
+    private void printAvailableTechniques() {
+        System.out.println("\nAvailable techniques:");
+        System.out.println("- Hit (any hit type)");
+        for (Technique technique : Technique.values()) {
+            System.out.printf("- %s (%d points)\n", technique.toString().toLowerCase(), technique.getPoints());
+        }
+    }
+
+    private String getValidRulesInput() {
+        while (true) {
+            try {
+                System.out.print("\nEnter rules (from left to right, comma-separated): ");
+                String input = getUserInput();
+                if (input.trim().isEmpty()) {
+                    System.out.println("Please enter at least one technique");
+                    continue;
+                }
+                // Test if the input is valid by trying to parse it
+                getTechniquesFromString(input);
+                return input;
+            } catch (IllegalArgumentException | IllegalAccessException e) {
+                System.out.println("Error: " + e.getMessage());
+                System.out.println("Please try again");
+            }
+        }
+    }
+
+    private int getValidTargetInput() {
+        while (true) {
+            try {
+                System.out.print("Enter target points: ");
+                String input = getUserInput();
+                int target = getIntFromString(input);
+                if (target <= 0) {
+                    System.out.println("Please enter a positive number");
+                    continue;
+                }
+                return target;
+            } catch (IllegalArgumentException e) {
+                System.out.println("Error: " + e.getMessage());
+                System.out.println("Please try again");
+            }
+        }
+    }
+
     public void run() {
-        System.out.println("Write Rules (from left to right)");
-        System.out.print("List of available techniques: Hit (any), ");
-        for (Technique technique : Technique.values()) System.out.printf("%s (%d), ", technique.toString().toLowerCase(), technique.getPoints());
-        System.out.println("\b\b\nExample of your input: draw, hIT, Punch");
-        System.out.print("Your input: ");
-        String rulesString = this.getUserInput();
-        ArrayList<ArrayList<Technique>> rules;
-        try {
-            rules = getTechniquesFromString(rulesString);
-        } catch (IllegalAccessException e) {
-            throw new RuntimeException(e);
-        }
-//        log.debug("Making graph with {} rules", rules);
+        Scanner scanner = new Scanner(System.in);
+        
+        while (true) {
+            System.out.println("\n=== Terrafirmacraft Anvil Calculator ===");
+            printAvailableTechniques();
+            
+            String rulesString = getValidRulesInput();
+            int target = getValidTargetInput();
 
-        System.out.print("Write Target: ");
-        String targetString = getUserInput();
-        int target = getIntFromString(targetString);
-//        log.debug("Making graph with {} target", target);
-        System.out.println("Working on it!");
-        ArrayList<TechniqueGraph> allGraphs = new ArrayList<>();
-        for (ArrayList<Technique> rule : rules) {
-            TechniqueGraph graph = new TechniqueGraph(target, rule);
-            graph.getFullPlan();
-            allGraphs.add(graph);
-        }
+            System.out.println("\nWorking on it...");
+            ArrayList<TechniqueGraph> allGraphs = new ArrayList<>();
+            
+            try {
+                ArrayList<ArrayList<Technique>> rules = getTechniquesFromString(rulesString);
 
-        TechniqueGraph bestGraph = Collections.max(allGraphs);
-        System.out.println("--- Here is best course of actions ---");
-        System.out.println(bestGraph.getPathConsecutive());
+                for (ArrayList<Technique> rule : rules) {
+                    Collections.reverse(rule);
+                    TechniqueGraph graph = new TechniqueGraph(target, rule);
+                    graph.getFullPlan();
+                    allGraphs.add(graph);
+                }
+
+                String solution = Collections.max(allGraphs).getPathConsecutive();
+
+                System.out.println("\n=== Best Course of Actions ===");
+                if (solution == null) {
+                    System.out.println("Can't solve graph!");
+                } else {
+                    System.out.println(solution);
+                }
+            } catch (Exception e) {
+                System.out.println("Error calculating plan: " + e.getMessage());
+            }
+
+            System.out.print("\nWould you like to calculate another plan? (y/n): ");
+            String response = scanner.nextLine().toLowerCase();
+            if (!response.startsWith("y")) {
+                System.out.println("Goodbye!");
+                break;
+            }
+        }
     }
 }

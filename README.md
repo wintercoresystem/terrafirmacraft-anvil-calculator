@@ -19,7 +19,7 @@ A command-line tool to find the optimal forging sequences in the TerraFirmaCraft
 ## Usage
 
 ```
-Write Rules (from right to left (first to last))
+Write Rules (from left to right)
 List of available techniques: Hit (any), light_hit, medium_hit, heavy_hit, draw, punch, bend, upset, shrink
 Example of your input: draw, hIT, Punch
 Your input: [Enter your forging sequence rules]

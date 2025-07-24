@@ -12,14 +12,13 @@ public class TechniqueGraph implements Comparable<TechniqueGraph> {
 
     @Data
     @NoArgsConstructor
-    private class Node {
+    private static class Node {
         private Node parent;
-        private ArrayList<Node> children = new ArrayList<>();
+        private List<Node> children = new ArrayList<>();
         private Technique technique;
         private int points;
         private int currentPoints;
         private int depth;
-        private boolean initialized = false;
 
         public Node(Technique technique, Node parent) {
             this.parent = parent;
@@ -30,45 +29,39 @@ public class TechniqueGraph implements Comparable<TechniqueGraph> {
         }
 
         public void initializeChildren() {
-            if (!this.initialized) {
-//                log.debug("Initializing children for node with {} technique", this.technique);
+            if (children.isEmpty()) {
                 for (Technique technique : Technique.values()) {
-                    this.children.add(new Node(technique, this));
-                    this.initialized = true;
+                    if (this.currentPoints - technique.getPoints() >= 0) {
+                        this.children.add(new Node(technique, this));
+                    }
                 }
-            } else log.warn("Tried to initialize initialized node with {} technique", this.technique);
+            }
         }
 
         @Override
         public String toString() {
             return "Node{" +
-                    "children=" + children +
-                    ", technique=" + technique +
+                    "technique=" + technique +
                     ", points=" + points +
-                    ", initialized=" + initialized +
                     ", currentPoints=" + currentPoints +
-                    ", currentDepth=" + depth +
+                    ", depth=" + depth +
                     '}';
         }
     }
 
-
-    private int targetPoints;
-    private ArrayList<Technique> fullPath = new ArrayList<>();
-    private Node rootNode;
+    private final int targetPoints;
+    private final List<Technique> fullPath = new ArrayList<>();
+    private final Node rootNode;
     private int finalDepth;
     private int uniqueTechniques;
     private String pathConsecutive;
 
-
-    public TechniqueGraph(int targetPoints, ArrayList<Technique> rules) {
+    public TechniqueGraph(int targetPoints, List<Technique> rules) {
         this.fullPath.addAll(rules);
-        this.targetPoints = targetPoints - rules
-                .stream()
-                .map(Technique::getPoints)
-                .reduce(0, Integer::sum);
-//        log.info("{}, points to calculate with ending rules {}. {} points actually.", targetPoints, rules, this.targetPoints);
-//        log.info("Making root node.");
+        this.targetPoints = targetPoints - rules.stream()
+                .mapToInt(Technique::getPoints)
+                .sum();
+
         this.rootNode = new Node();
         this.rootNode.setCurrentPoints(this.targetPoints);
         this.rootNode.setDepth(1);
@@ -76,39 +69,42 @@ public class TechniqueGraph implements Comparable<TechniqueGraph> {
     }
 
     private Node searchDFS() {
-        Queue<Node> nodesQueue = new LinkedList<>(rootNode.getChildren());
+        PriorityQueue<Node> nodesQueue = new PriorityQueue<>(
+                Comparator.comparing(Node::getPoints).reversed()
+        );
+        nodesQueue.addAll(rootNode.getChildren());
 
-        int depth = 0;
-        while (depth < 100) {
-            nodesQueue = new LinkedList<>(nodesQueue.stream().sorted(Comparator.comparing(Node::getPoints).reversed()).toList());
+        while (!nodesQueue.isEmpty()) {
             Node currentNode = nodesQueue.poll();
             int currentPoints = currentNode.getCurrentPoints();
+
             if (currentPoints == 0) {
-//                log.debug("Returning node {} with final iteration: {}.", currentNode, depth);
                 this.finalDepth = currentNode.getDepth();
                 return currentNode;
-            } else if ((currentPoints < 0 || currentPoints > 200)) continue;
-//            log.debug("Trying {} node", currentNode);
+            }
+
+            if (currentPoints < 0 || currentPoints > 200) {
+                continue;
+            }
 
             currentNode.initializeChildren();
             nodesQueue.addAll(currentNode.getChildren());
-
-            depth = currentNode.getDepth();
-
         }
-        log.warn("Graph is too deep!");
+
         return null;
     }
 
     private String compress(Technique technique, int count) {
-        if (count > 1)
-            return String.format("%s✕%d, ", technique, count);
-        else
-            return String.format("%s, ", technique);
+        return count > 1 ?
+                String.format("%s✕%d, ", technique, count) :
+                String.format("%s, ", technique);
     }
 
     public void getFullPlan() {
         Node resultNode = this.searchDFS();
+        if (resultNode == null) {
+            return;
+        }
 
         while (resultNode.getParent() != null) {
             this.fullPath.addFirst(resultNode.getTechnique());
@@ -116,34 +112,40 @@ public class TechniqueGraph implements Comparable<TechniqueGraph> {
         }
 
         StringBuilder stringBuilder = new StringBuilder();
-        int consecutiveTechniqueAmount = 1;
-        for (int i = 0; i < this.fullPath.size(); i++) {
-            Technique technique = this.fullPath.get(i);
-            if (i + 2> this.fullPath.size()) {
-                break;
+        int consecutiveCount = 1;
+        Technique currentTechnique = null;
+
+        for (Technique technique : this.fullPath) {
+            if (currentTechnique == null) {
+                currentTechnique = technique;
+                continue;
             }
-            Technique nextTechnique = this.fullPath.get(i + 1);
-            if (technique == nextTechnique) {
-                consecutiveTechniqueAmount += 1;
+
+            if (technique == currentTechnique) {
+                consecutiveCount++;
             } else {
-                stringBuilder.append(this.compress(technique, consecutiveTechniqueAmount));
-                consecutiveTechniqueAmount = 1;
+                stringBuilder.append(compress(currentTechnique, consecutiveCount));
+                currentTechnique = technique;
+                consecutiveCount = 1;
             }
         }
-        stringBuilder.append(this.compress(fullPath.getLast(), consecutiveTechniqueAmount));
-        stringBuilder.delete(stringBuilder.length() - 2, stringBuilder.length());
 
-        this.uniqueTechniques = new HashSet<>(this.fullPath).size();
+        if (currentTechnique != null) {
+            stringBuilder.append(compress(currentTechnique, consecutiveCount));
+        }
+
+        if (stringBuilder.length() > 2) {
+            stringBuilder.setLength(stringBuilder.length() - 2);
+        }
+
         this.pathConsecutive = stringBuilder.toString();
-//        log.debug("Graph solved. Amount of actions: {}; Unique techniques: {}; Path: {}; Path (full): {}.", this.fullPath.size(), this.uniqueTechniques, this.pathConsecutive, this.fullPath);
+        this.uniqueTechniques = (int) this.pathConsecutive.chars().filter(ch -> ch == ' ').count() + 1;
     }
 
     @Override
     public int compareTo(TechniqueGraph otherGraph) {
-        int comparedDepth = Integer.compare(otherGraph.getFinalDepth(), this.finalDepth);
-        int uniqueTechniques = Integer.compare(otherGraph.getUniqueTechniques(), this.uniqueTechniques);
-        if (comparedDepth != 0)
-            return comparedDepth;
-        return uniqueTechniques;
+        int depthCompare = Integer.compare(otherGraph.getFinalDepth(), this.finalDepth);
+        return depthCompare != 0 ? depthCompare :
+                Integer.compare(otherGraph.getUniqueTechniques(), this.uniqueTechniques);
     }
 }
